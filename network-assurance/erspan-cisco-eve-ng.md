@@ -19,7 +19,7 @@ In this lab:
 ## Lab Topology
 
 <p align="center">
-  <img width="910" alt="ERSPAN topology" src="PASTE_TOPOLOGY_IMAGE_URL_HERE" />
+  <img width="1452" height="503" alt="erspan-topology" src="https://github.com/user-attachments/assets/75814e9a-6a1e-43e3-a46d-94d434ef6d6e" />
 </p>
 
 The lab topology is:
@@ -236,25 +236,16 @@ This must match the ERSPAN ID configured on CSR4.
 
 To test the ERSPAN session, VPC7 continuously pings CSR4.
 
-<p align="center">
-  <img width="900" alt="VPC7 ping test" src="PASTE_PING_TEST_IMAGE_URL_HERE" />
-</p>
-
 The command used on VPC7 is:
 
 ```text
 VPCS> ping 10.10.20.1 -t
 ```
-
 Successful replies were received:
 
-```text
-84 bytes from 10.10.20.1 icmp_seq=1 ttl=255 time=0.266 ms
-84 bytes from 10.10.20.1 icmp_seq=2 ttl=255 time=0.429 ms
-84 bytes from 10.10.20.1 icmp_seq=3 ttl=255 time=0.375 ms
-84 bytes from 10.10.20.1 icmp_seq=4 ttl=255 time=0.355 ms
-84 bytes from 10.10.20.1 icmp_seq=5 ttl=255 time=0.391 ms
-```
+<p align="left">
+ <img width="620" height="261" alt="image" src="https://github.com/user-attachments/assets/e9d84d92-7e45-4876-b218-e01da7b6c11a" />
+</p>
 
 This confirms that live ICMP traffic exists on the monitored segment.
 
@@ -270,7 +261,7 @@ This confirms that live ICMP traffic exists on the monitored segment.
 Packet capture was performed from the ERSPAN destination side.
 
 <p align="center">
-  <img width="1200" alt="ERSPAN packet capture proof" src="PASTE_PACKET_CAPTURE_IMAGE_URL_HERE" />
+  <img width="1629" height="476" alt="image" src="https://github.com/user-attachments/assets/2cfd07a0-efe8-4b74-ac95-a64ef96ba619" />
 </p>
 
 The capture shows ICMP echo requests and replies between VPC7 and CSR4:
