@@ -1,1 +1,403 @@
+# CSR1000v ERSPAN Lab in EVE-NG
+
+## Summary
+
+This lab demonstrates a basic **ERSPAN** configuration using Cisco CSR1000v routers in EVE-NG.
+
+The goal was to mirror traffic from a source interface on one router and send the mirrored traffic across a Layer 3 routed network to another router acting as the ERSPAN destination.
+
+In this lab, ICMP traffic between a VPC and CSR4 was captured remotely on the ERSPAN destination side, proving that ERSPAN successfully transported the mirrored packets across the routed network.
+
+---
+
+## Topology
+
+```text
++------+        +------+        +------+        +------+        +------+
+| VPC7 |--------| CSR4 |--------| CSR  |--------| CSR5 |--------| VPC8 |
++------+        +------+        +------+        +------+        +------+
+
+10.10.20.0/24   10.10.30.0/24   10.10.40.0/24   10.10.10.0/24
+```
+
+Detailed addressing:
+
+```text
+VPC7
+  eth0: 10.10.20.10/24
+
+CSR4
+  Gi2: 10.10.20.1/24
+  Gi1: 10.10.30.4/24
+
+Middle CSR
+  Gi2: 10.10.30.1/24
+  Gi4: 10.10.40.1/24
+
+CSR5
+  Gi3: 10.10.40.5/24
+  Gi1: 10.10.10.1/24
+
+VPC8
+  eth0: 10.10.10.10/24
+```
+
+The monitored traffic is on the left side of the topology:
+
+```text
+VPC7 10.10.20.10 <--> CSR4 10.10.20.1
+```
+
+The analyzer is on the right side of the topology, connected to CSR5.
+
+---
+
+## Lab Goal
+
+The objective is to capture traffic from CSR4’s interface connected to VPC7:
+
+```text
+CSR4 GigabitEthernet2
+```
+
+Then send the mirrored traffic across the routed network to CSR5:
+
+```text
+ERSPAN Source:      CSR4
+ERSPAN Destination: CSR5
+ERSPAN Destination IP: 10.10.40.5
+```
+
+The important point is that the capture is not transported through a Layer 2 RSPAN VLAN.
+
+Instead, ERSPAN encapsulates the mirrored traffic and sends it across the Layer 3 network using IP/GRE-based transport.
+
+---
+
+## ERSPAN Traffic Flow
+
+```text
+VPC7 sends ICMP to CSR4
+        ↓
+CSR4 sees the traffic on Gi2
+        ↓
+CSR4 mirrors Gi2 traffic using ERSPAN
+        ↓
+Mirrored traffic is sent to 10.10.40.5
+        ↓
+CSR5 receives the ERSPAN traffic
+        ↓
+CSR5 forwards the decapsulated mirrored traffic out Gi1
+        ↓
+Packet capture sees the original ICMP traffic
+```
+
+Simple view:
+
+```text
+Source Traffic: 10.10.20.10 ↔ 10.10.20.1
+
+ERSPAN Transport Path:
+CSR4 → Middle CSR → CSR5
+
+Analyzer Side:
+CSR5 Gi1
+```
+
+---
+
+## Routing Requirement
+
+All routers run **OSPF single area 0**.
+
+The purpose of OSPF in this lab is only to provide basic IP reachability between the ERSPAN source and ERSPAN destination.
+
+The source router must be able to reach the ERSPAN destination IP:
+
+```text
+CSR4 must reach 10.10.40.5
+```
+
+The destination router must also have routing back toward the ERSPAN source/origin IP:
+
+```text
+CSR5 must reach 10.10.30.4
+```
+
+Without Layer 3 reachability, ERSPAN will not work.
+
+---
+
+## CSR4 ERSPAN Source Configuration
+
+CSR4 is the ERSPAN source router.
+
+It monitors traffic on:
+
+```text
+GigabitEthernet2
+```
+
+This is the interface facing VPC7 in the 10.10.20.0/24 network.
+
+```cisco
+conf t
+!
+monitor session 1 type erspan-source
+!
+source interface GigabitEthernet2 both
+!
+destination
+ ip address 10.10.40.5
+ origin ip address 10.10.30.4
+!
+erspan-id 100
+no shutdown
+end
+```
+
+### Explanation
+
+```cisco
+monitor session 1 type erspan-source
+```
+
+Creates ERSPAN session 1 as a source session.
+
+```cisco
+source interface GigabitEthernet2 both
+```
+
+Mirrors both received and transmitted traffic on GigabitEthernet2.
+
+```cisco
+destination
+ ip address 10.10.40.5
+```
+
+Sends the mirrored ERSPAN traffic to CSR5.
+
+```cisco
+origin ip address 10.10.30.4
+```
+
+Uses CSR4’s 10.10.30.4 address as the ERSPAN origin/source IP.
+
+```cisco
+erspan-id 100
+```
+
+Sets the ERSPAN ID. The ERSPAN source and destination must use the same ERSPAN ID.
+
+```cisco
+no shutdown
+```
+
+Enables the monitor session.
+
+---
+
+## CSR5 ERSPAN Destination Configuration
+
+CSR5 is the ERSPAN destination router.
+
+It receives ERSPAN traffic destined to:
+
+```text
+10.10.40.5
+```
+
+Then forwards the decapsulated mirrored traffic out:
+
+```text
+GigabitEthernet1
+```
+
+This is where the analyzer or packet capture device is connected.
+
+```cisco
+conf t
+!
+monitor session 1 type erspan-destination
+!
+destination interface GigabitEthernet1
+!
+source
+ ip address 10.10.40.5
+!
+erspan-id 100
+no shutdown
+end
+```
+
+### Explanation
+
+```cisco
+monitor session 1 type erspan-destination
+```
+
+Creates ERSPAN session 1 as a destination session.
+
+```cisco
+destination interface GigabitEthernet1
+```
+
+Sends the received mirrored traffic out GigabitEthernet1.
+
+```cisco
+source
+ ip address 10.10.40.5
+```
+
+Tells CSR5 to receive ERSPAN traffic sent to its local IP address 10.10.40.5.
+
+```cisco
+erspan-id 100
+```
+
+Matches the ERSPAN ID used on the source router.
+
+```cisco
+no shutdown
+```
+
+Enables the monitor session.
+
+---
+
+## Packet Capture Proof
+
+The packet capture confirms that ERSPAN is working.
+
+The analyzer side sees ICMP traffic between:
+
+```text
+10.10.20.10
+10.10.20.1
+```
+
+These IP addresses belong to the left side of the topology:
+
+```text
+VPC7 10.10.20.10 ↔ CSR4 10.10.20.1
+```
+
+This is important because the packet capture was taken from the ERSPAN destination side, not directly on the 10.10.20.0/24 segment.
+
+The capture shows ICMP echo requests and replies:
+
+```text
+10.10.20.10 → 10.10.20.1  ICMP Echo Request
+10.10.20.1  → 10.10.20.10 ICMP Echo Reply
+```
+
+This proves that CSR4 successfully mirrored the traffic from GigabitEthernet2 and transported it across the routed network to CSR5 using ERSPAN.
+
+---
+
+## Why This Proves ERSPAN Works
+
+The ICMP traffic is local to the 10.10.20.0/24 segment:
+
+```text
+VPC7 ↔ CSR4
+```
+
+The analyzer is located on the remote side near CSR5.
+
+Since the analyzer can see the 10.10.20.10 to 10.10.20.1 ICMP traffic, the packet capture is not seeing normal routed traffic.
+
+It is seeing mirrored traffic delivered by ERSPAN.
+
+In short:
+
+```text
+If the analyzer on CSR5 can see traffic from CSR4 Gi2,
+then ERSPAN is successfully transporting the mirrored packets.
+```
+
+---
+
+## Verification Commands
+
+Useful verification commands:
+
+```cisco
+show monitor session 1
+```
+
+```cisco
+show ip route
+```
+
+```cisco
+show ip ospf neighbor
+```
+
+```cisco
+ping 10.10.40.5 source 10.10.30.4
+```
+
+Expected result:
+
+```text
+CSR4 can reach 10.10.40.5
+CSR5 can receive ERSPAN traffic
+Analyzer sees mirrored ICMP packets from 10.10.20.0/24
+```
+
+---
+
+## Important Notes
+
+ERSPAN requires Layer 3 reachability between the source and destination.
+
+Unlike RSPAN, ERSPAN does not require a dedicated remote-span VLAN.
+
+Comparison:
+
+```text
+SPAN   = local mirror on the same switch/router
+RSPAN  = remote mirror across Layer 2 using an RSPAN VLAN
+ERSPAN = remote mirror across Layer 3 using IP/GRE encapsulation
+```
+
+In this lab:
+
+```text
+RSPAN VLAN was not used.
+OSPF provided IP reachability.
+ERSPAN transported the mirrored traffic across the routed network.
+```
+
+---
+
+## Troubleshooting Checklist
+
+If ERSPAN does not work, check the following:
+
+1. Is the source interface correct?
+2. Is the ERSPAN destination IP reachable?
+3. Is the origin IP reachable from the destination side?
+4. Is OSPF advertising the required connected networks?
+5. Is the same ERSPAN ID configured on both sides?
+6. Is the monitor session enabled with `no shutdown`?
+7. Is the analyzer connected to the correct destination interface?
+8. Is packet capture running on the analyzer side?
+9. Are ACLs or firewall rules blocking GRE/IP transport?
+10. Is the correct interface being monitored?
+
+---
+
+## Key Takeaway
+
+ERSPAN is useful when the analyzer is not in the same Layer 2 domain as the source traffic.
+
+In this lab, traffic from the 10.10.20.0/24 segment was mirrored from CSR4 and successfully delivered to CSR5 across a routed OSPF network.
+
+```text
+CSR4 Gi2 traffic → ERSPAN → routed network → CSR5 Gi1 → analyzer
+```
+
+The packet capture showing ICMP between 10.10.20.10 and 10.10.20.1 from the remote analyzer side confirms that the ERSPAN session is working.
 
