@@ -147,16 +147,16 @@ It monitors both inbound and outbound traffic on `GigabitEthernet2`.
 conf t
 !
 monitor session 1 type erspan-source
-!
-source interface GigabitEthernet2 both
+source interface GigabitEthernet 2 both
+no shutdown
 !
 destination
- ip address 10.10.40.5
- origin ip address 10.10.30.4
+ip address 10.10.40.5
+origin ip address 10.10.30.4
 !
 erspan-id 100
-no shutdown
 end
+!
 ```
 
 Important parts:
@@ -197,16 +197,14 @@ It receives ERSPAN traffic sent to `10.10.40.5` and forwards the mirrored packet
 conf t
 !
 monitor session 1 type erspan-destination
-!
-destination interface GigabitEthernet1
+destination interface GigabitEthernet 1
+no shutdown
 !
 source
- ip address 10.10.40.5
-exit
-!
+ip address 10.10.40.5
 erspan-id 100
-no shutdown
 end
+!
 ```
 
 Important parts:
@@ -262,6 +260,12 @@ Packet capture was performed from the ERSPAN destination side.
 
 <p align="center">
   <img width="1629" height="476" alt="image" src="https://github.com/user-attachments/assets/2cfd07a0-efe8-4b74-ac95-a64ef96ba619" />
+</p>
+
+**Note:** Wireshark may display the inner packet as ICMP in the packet list, but expanding the packet details confirms it is encapsulated inside GRE/ERSPAN from `10.10.30.4` to `10.10.40.5`.
+
+<p align="center">
+ <img width="1013" height="328" alt="image" src="https://github.com/user-attachments/assets/772d051d-a82f-4ac2-b243-81b8440b4a8a" />
 </p>
 
 The capture shows ICMP echo requests and replies between VPC7 and CSR4:
