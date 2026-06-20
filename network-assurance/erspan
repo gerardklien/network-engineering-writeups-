@@ -3,7 +3,6 @@
 ## Overview
 
 This lab demonstrates a basic ERSPAN configuration using Cisco CSR1000v routers in EVE-NG.
-
 The goal is to mirror traffic from a source interface on one router and send the mirrored traffic across a routed Layer 3 network to another router where packet capture is performed.
 
 In this lab:
@@ -58,11 +57,9 @@ VPC7 10.10.20.10  <-->  CSR4 Gi2 10.10.20.1
 
 ## What ERSPAN Does
 
-SPAN is used when the analyzer is local to the same switch or router.
-
-RSPAN extends SPAN across a Layer 2 network using a dedicated RSPAN VLAN.
-
-ERSPAN extends SPAN across a Layer 3 routed network.
+- SPAN is used when the analyzer is local to the same switch or router.
+- RSPAN extends SPAN across a Layer 2 network using a dedicated RSPAN VLAN.
+- ERSPAN extends SPAN across a Layer 3 routed network.
 
 In simple terms:
 
@@ -73,13 +70,11 @@ ERSPAN = Remote mirroring across Layer 3
 ```
 
 ERSPAN is useful when the packet capture device is not in the same Layer 2 domain as the source traffic.
-
 In this lab, the analyzer is on the CSR5 side, while the monitored traffic is on the CSR4 side. Because the mirrored traffic must cross a routed network, ERSPAN is the correct feature to use.
 
 ---
 
 ## Lab Objective
-
 The objective is to mirror traffic from CSR4 `GigabitEthernet2`.
 
 This is the interface connected to VPC7.
@@ -118,11 +113,8 @@ Packet capture
 ---
 
 ## Routing Requirement
-
 ERSPAN requires IP reachability between the source and destination devices.
-
 In this lab, all routers run OSPF single area 0. OSPF is only used to advertise the connected routes and provide basic reachability.
-
 CSR4 must be able to reach CSR5's ERSPAN destination IP:
 
 ```
@@ -140,9 +132,7 @@ Without Layer 3 reachability, the ERSPAN session will not work.
 ---
 
 ## CSR4 Configuration
-
 CSR4 is configured as the ERSPAN source.
-
 It monitors both inbound and outbound traffic on `GigabitEthernet2`.
 
 ```
@@ -190,9 +180,7 @@ This identifies the ERSPAN session. The same ERSPAN ID must be configured on the
 ---
 
 ## CSR5 Configuration
-
 CSR5 is configured as the ERSPAN destination.
-
 It receives ERSPAN traffic sent to `10.10.40.5` and forwards the mirrored packets out `GigabitEthernet1`.
 
 ```
@@ -235,7 +223,6 @@ This must match the ERSPAN ID configured on CSR4.
 ---
 
 ## Traffic Generation
-
 To test the ERSPAN session, VPC7 continuously pings CSR4.
 
 ![VPC7 Ping Test](../screenshots/erspan-vpc7-ping-test.png)
@@ -279,17 +266,13 @@ The capture shows ICMP echo requests and replies between VPC7 and CSR4:
 ```
 
 This confirms that ERSPAN is working.
-
 The packet capture was not taken directly from the `10.10.20.0/24` segment. The analyzer was on the CSR5 side of the topology.
-
 Without ERSPAN, the analyzer on the CSR5 side should not see the local ICMP exchange between VPC7 and CSR4.
-
 Since the analyzer can see traffic between `10.10.20.10` and `10.10.20.1`, CSR4 successfully mirrored the traffic and transported it across the routed network using ERSPAN.
 
 ---
 
 ## Why This Works
-
 The original traffic exists on the left side of the topology:
 
 ```
@@ -319,13 +302,11 @@ Packet capture shows the original ICMP packets
 ```
 
 That is the main purpose of ERSPAN.
-
 It allows traffic from one part of the network to be mirrored and analyzed from another part of the network, even when the source and analyzer are separated by Layer 3 routing.
 
 ---
 
 ## Useful Verification Commands
-
 Check the ERSPAN session:
 
 ```
@@ -353,7 +334,6 @@ ping 10.10.40.5 source 10.10.30.4
 ---
 
 ## Troubleshooting Notes
-
 If ERSPAN does not work, check the following:
 
 * Is the monitored source interface correct?
@@ -369,11 +349,8 @@ If ERSPAN does not work, check the following:
 ---
 
 ## Key Takeaway
-
 ERSPAN allows mirrored traffic to be transported across a routed Layer 3 network.
-
 Unlike RSPAN, ERSPAN does not require a dedicated RSPAN VLAN.
-
 In this lab, CSR4 mirrored ICMP traffic from the `10.10.20.0/24` segment and sent it to CSR5 across an OSPF-routed network.
 
 ```
@@ -387,5 +364,4 @@ CSR5 ERSPAN destination
       ↓
 Packet capture
 ```
-
 The packet capture showing ICMP traffic between `10.10.20.10` and `10.10.20.1` confirms that the ERSPAN session is working.
